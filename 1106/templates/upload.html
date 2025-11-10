@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>이미지 업로드 & OCR</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 40px auto; }
+    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px; margin: 12px 0; }
+    pre { background: #0b1020; color: #d2f4ff; padding: 12px; border-radius: 8px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>이미지 업로드 & OCR</h1>
+
+  <div class="card">
+    <form id="uploadForm" action="/upload_and_ocr" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept="image/*" required>
+      <button type="submit">업로드 & OCR</button>
+    </form>
+    <div id="status" style="margin-top:8px;"></div>
+  </div>
+
+  <div class="card">
+    <h3>인식 결과(JSON)</h3>
+    <pre id="result">(아직 없음)</pre>
+  </div>
+
+  <script>
+    const form = document.getElementById('uploadForm');
+    const resultEl = document.getElementById('result');
+    const statusEl = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault(); // ★ 페이지 이동 막기
+      resultEl.textContent = '(처리 중...)';
+      statusEl.textContent = '';
+
+      const fd = new FormData(form);
+      try {
+        const resp = await fetch(form.action, {
+          method: 'POST',
+          body: fd
+        });
+        const data = await resp.json();
+        if (!resp.ok) {
+          statusEl.textContent = '업로드/인식 실패';
+        }
+        resultEl.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        statusEl.textContent = '요청 중 오류: ' + err;
+        resultEl.textContent = '';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+# ---------------------------
+# Python / Flask 기본
+# ---------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.cache
+*.log
+*.tmp
+
+# ---------------------------
+# Virtual Environments
+# ---------------------------
+venv/
+venv*/ 
+env/
+.venv/
+
+# ---------------------------
+# OS / IDE 관련
+# ---------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ---------------------------
+# Upload / Capture / OCR 결과 폴더 (대용량)
+# ---------------------------
+uploads/
+captures/
+
+# ---------------------------
+# SQLite DB (원한다면 버전관리 제외)
+# ---------------------------
+db.sqlite3
+
+# ---------------------------
+# Model / OCR 캐시 (Torch, HuggingFace, EasyOCR 등)
+# ---------------------------
+~/.cache/
+.cache/
+hf_cache/
+torch_cache/
+easyocr_cache/
+*.pth
+
+# ---------------------------
+# Build / Dist
+# ---------------------------
+dist/
+build/
+*.egg-info/
+
+

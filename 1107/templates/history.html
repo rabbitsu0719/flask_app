@@ -1,0 +1,26 @@
+<!doctype html><html lang="ko"><head>
+<meta charset="utf-8"><title>히스토리</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head><body>
+<header>
+  <h1>OCR 히스토리</h1>
+  <nav><a href="/">홈</a><a href="/logout">로그아웃</a></nav>
+</header>
+<main>
+<section class="card">
+{% if logs|length == 0 %}
+  <p>아직 기록이 없습니다.</p>
+{% else %}
+  <ul>
+  {% for row in logs %}
+    <li>
+      <strong>{{ row.filename }}</strong>
+      <small>{{ row.created_at }}</small>
+      <pre>{{ row.result_json }}</pre>
+    </li>
+  {% endfor %}
+  </ul>
+{% endif %}
+</section>
+</main>
+</body></html>

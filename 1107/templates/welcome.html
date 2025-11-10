@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <title>환영합니다</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#0b1020; color:#e9f1ff; }
+    .wrap { min-height:100vh; display:grid; place-items:center; padding:24px; }
+    .card { width:min(600px, 92vw); background:#111834; border:1px solid #1d2746; border-radius:18px; padding:28px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    h1 { margin:0 0 8px; font-size:28px; }
+    .email { opacity:.8; margin-bottom:20px; }
+    .imgbox { overflow:hidden; border-radius:14px; border:1px solid #1d2746; background:#0f1430; }
+    .imgbox img { display:block; width:100%; height:auto; max-height:320px; object-fit: contain;}
+    .actions { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
+    .btn { padding:12px 16px; border-radius:12px; border:0; cursor:pointer; font-weight:600; }
+    .btn.primary { background:#2a64ff; color:#fff; }
+    .btn.ghost { background:#2b324c; color:#e9f1ff; }
+    a.btn { text-decoration:none; display:inline-block; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>안녕하세요 👋</h1>
+      <div class="email">{{ username }}님</div>
+
+      <div class="imgbox">
+        <!-- ✅ 로그인 성공 즉시 보여줄 이미지 -->
+        <img src="{{ photo_url }}" alt="welcome image">
+      </div>
+
+      <div class="actions">
+        <a class="btn primary" href="/">OCR 페이지로 이동</a>
+        <a class="btn ghost" href="/logout">로그아웃</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

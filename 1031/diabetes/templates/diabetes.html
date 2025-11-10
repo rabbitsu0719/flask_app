@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>질병 예측</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: inline-block;
+            width: 150px;
+            margin-bottom: 5px;
+        }
+        input, select {
+            padding: 8px;
+            width: 200px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h2>질병 예측 시스템</h2>
+    <form id="predictForm">
+        <div class="form-group">
+            <label for="Age">나이:</label>
+            <input type="number" id="Age" name="Age" value="30">
+        </div>
+        <div class="form-group">
+            <label for="Blood_Pressure">혈압:</label>
+            <input type="number" id="Blood_Pressure" name="Blood_Pressure" value="120">
+        </div>
+        <div class="form-group">
+            <label for="Cholesterol">콜레스테롤:</label>
+            <input type="number" id="Cholesterol" name="Cholesterol" value="200">
+        </div>
+        <div class="form-group">
+            <label for="Gender_Encoded">성별:</label>
+            <select id="Gender_Encoded" name="Gender_Encoded">
+                <option value="0">여성</option>
+                <option value="1">남성</option>
+            </select>
+        </div>
+        <button type="submit">예측하기</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+    $(document).ready(function() {
+        $('#predictForm').on('submit', function(e) {
+            // submit으로 인한 페이지 넘어감 방지
+            e.preventDefault();
+            
+            // 폼에 입력된 값 가져와서 formData 배열객체 만들기
+            const formData = {
+                Age: parseInt($('#Age').val()),
+                Blood_Pressure: parseInt($('#Blood_Pressure').val()),
+                Cholesterol: parseInt($('#Cholesterol').val()),
+                Gender_Encoded: parseInt($('#Gender_Encoded').val())
+            };
+
+            // 배열객체를 JSON 문자열로 바꿔서 파이썬 서버에 전달 (API 호출)
+            $.ajax({
+                url: 'http://210.109.54.76:5000/predict',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function(response) {
+                    $('#result').html(`
+                        <h3>예측 결과</h3>
+                        <p>당뇨병 발병 가능성: <strong>${response.prediction}</strong></p>
+                        <p>신뢰도: ${(response.probability * 100).toFixed(2)}%</p>
+                    `).css('color', 'green');
+                }
+            });
+        });
+
+    });
+    </script>
+</body>
+</html>
