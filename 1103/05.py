@@ -13,3 +13,5 @@ plt.savefig("ocr_result.png")
 print("✅ 그래프 저장 완료: ocr_result.png")
 
 
+
+

@@ -2,6 +2,18 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#317EFB" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" href="/static/icons/ocr-192.png" />
+  <link rel="icon" href="/static/icons/ocr-192.png" />
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="OCRApp">
+
   <title>TrOCR 시각화</title>
   <style>
     :root { color-scheme: dark; }
@@ -15,6 +27,8 @@
     input[type=file]{ padding:8px; border-radius:10px; border:1px solid #2b324c; background:#0f1430; color:#cfe3ff }
     #canvas { width:100%; max-width:940px; border:1px solid #26304d; border-radius:12px; display:block; background:#090f22; }
     pre { white-space:pre-wrap; background:#0f1430; padding:12px; border-radius:10px; }
+    footer{max-width:980px;margin:16px auto 32px;padding:0 16px;color:#9ec1ff70;font-size:12px}
+    a.attribution{color:#9ec1ff}
   </style>
 </head>
 <body>
@@ -30,13 +44,12 @@
   <div class="wrap">
     <div class="card">
       <h3>파일 업로드 / 카메라</h3>
-      <!-- ✅ 폼 자동 submit 절대 금지 -->
       <form id="uform" onsubmit="return false;">
-        <input id="file" type="file" accept="image/*" capture="environment">
+        <input id="file" type="file" accept="image/*" capture="environment" aria-label="이미지 파일 선택">
         <button id="run" type="button" class="btn primary">OCR 실행</button>
         <button id="save" type="button" class="btn gray">시각화 캡처 저장</button>
       </form>
-      <div id="status" style="margin-top:8px"></div>
+      <div id="status" style="margin-top:8px" role="status" aria-live="polite"></div>
     </div>
 
     <div class="card">
@@ -49,173 +62,190 @@
     </div>
   </div>
 
-<script>
-const API_BASE = location.origin; // http://61.109.238.77:5000
+  <footer>
+    <a class="attribution" href="https://www.flaticon.com/free-icons/ocr" title="ocr icons">
+      Ocr icons created by Freepik - Flaticon
+    </a>
+  </footer>
 
-const fileEl   = document.getElementById('file');
-const runBtn   = document.getElementById('run');
-const saveBtn  = document.getElementById('save');
-const statusEl = document.getElementById('status');
-const canvas   = document.getElementById('canvas');
-const ctx      = canvas.getContext('2d');
-const jsonEl   = document.getElementById('json');
-
-function setStatus(msg){ statusEl.textContent = msg; console.log('[STATUS]', msg); }
-
-// 이미지 로드: Safari 안전(우선 createImageBitmap, 실패 시 ObjectURL)
-async function loadBitmapFromFile(file){
-  try {
-    return await createImageBitmap(file);
-  } catch {
-    return await new Promise((resolve, reject)=>{
-      const url = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지 로드 실패')); };
-      img.src = url;
+  <!-- Service Worker 등록 -->
+  <script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(r => console.log('SW 등록 성공:', r.scope))
+        .catch(e => console.error('SW 등록 실패:', e));
     });
   }
-}
+  </script>
 
-// 캔버스 리사이즈+그리기 (가로 940px 제한)
-function fitAndDrawImage(bmp){
-  const maxW = 940;
-  const scale = bmp.width > maxW ? maxW / bmp.width : 1;
-  canvas.width  = Math.round(bmp.width  * scale);
-  canvas.height = Math.round(bmp.height * scale);
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  return scale;
-}
+  <!-- 앱 스크립트 -->
+  <script>
+  const API_BASE = location.origin;
 
-// bbox/quad 정규화
-function toRect(b, W, H){
-  if (!Array.isArray(b) || b.length !== 4) return null;
-  const norm = b.every(v => v >= 0 && v <= 1);
-  let x0=b[0], y0=b[1], x1=b[2], y1=b[3];
-  if (norm){ x0*=W; y0*=H; x1*=W; y1*=H; }
-  let w=x1-x0, h=y1-y0;
-  if (w<=0 || h<=0){
-    let x=b[0], y=b[1], ww=b[2], hh=b[3];
-    if (norm){ x*=W; y*=H; ww*=W; hh*=H; }
-    x0=x; y0=y; w=ww; h=hh;
+  const fileEl   = document.getElementById('file');
+  const runBtn   = document.getElementById('run');
+  const saveBtn  = document.getElementById('save');
+  const statusEl = document.getElementById('status');
+  const canvas   = document.getElementById('canvas');
+  const ctx      = canvas.getContext('2d');
+  const jsonEl   = document.getElementById('json');
+
+  function setStatus(msg){ statusEl.textContent = msg; console.log('[STATUS]', msg); }
+
+  // ---- 이미지 로드(브라우저 호환) ----
+  async function loadBitmapFromFile(file){
+    try { return await createImageBitmap(file); }
+    catch {
+      return await new Promise((resolve, reject)=>{
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('이미지 로드 실패')); };
+        img.src = url;
+      });
+    }
   }
-  x0 = Math.max(0, Math.min(x0, W));
-  y0 = Math.max(0, Math.min(y0, H));
-  w  = Math.max(1, Math.min(w,  W - x0));
-  h  = Math.max(1, Math.min(h,  H - y0));
-  return {x:x0, y:y0, w, h};
-}
-function toQuad(q, W, H){
-  if (!Array.isArray(q) || q.length !== 4) return null;
-  const norm = q.flat().every(v => v>=0 && v<=1);
-  return q.map(([x,y]) => norm ? [x*W, y*H] : [x,y]);
-}
 
-// 하이라이트 그리기
-function drawItems(items, scale){
-  ctx.lineWidth = 2;
-  ctx.font = '14px system-ui';
+  // ---- 로컬 미리보기(940px 한도) ----
+  function fitAndDrawImage(bmp){
+    const maxW = 940;
+    const scale = bmp.width > maxW ? maxW / bmp.width : 1;
+    canvas.width  = Math.round(bmp.width  * scale);
+    canvas.height = Math.round(bmp.height * scale);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+    return scale;
+  }
 
-  let drawn = 0;
-  for (const it of (items||[])){
-    // quad 우선
-    let pathDrawn = false;
-    if (it.quad){
-      const q = toQuad(it.quad, canvas.width, canvas.height);
-      if (q){
+  // ---- 서버 파일 기준으로 다시 그리기(정확한 스케일) ----
+  function drawServerImage(imgUrl, resp){
+    const {display_w, display_h} = resp;
+    return new Promise((resolve,reject)=>{
+      const img = new Image();
+      img.onload = ()=>{
+        canvas.width = display_w; canvas.height = display_h;
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.drawImage(img, 0, 0, display_w, display_h);
+        resolve();
+      };
+      img.onerror = ()=> reject(new Error('서버 이미지 로드 실패'));
+      img.src = imgUrl;
+    });
+  }
+
+  // ---- 박스 그리기 유틸 ----
+  function drawItems(resp){
+    const {items=[], scale_x=1, scale_y=1} = resp;
+    ctx.lineWidth = 2; ctx.font = '14px system-ui';
+    let drawn = 0;
+
+    for (const it of items){
+      let pathDrawn = false;
+
+      // 1) quad_scaled 우선
+      if (Array.isArray(it.quad_scaled) && it.quad_scaled.length === 4){
+        const q = it.quad_scaled;
         ctx.beginPath();
         ctx.moveTo(q[0][0], q[0][1]);
-        for (let i=1;i<q.length;i++) ctx.lineTo(q[i][0], q[i][1]);
+        for (let i=1;i<4;i++) ctx.lineTo(q[i][0], q[i][1]);
         ctx.closePath();
         ctx.strokeStyle = '#ffd54a';
         ctx.fillStyle   = 'rgba(255,213,74,0.18)';
-        ctx.fill();
-        ctx.stroke();
-        // 라벨
+        ctx.fill(); ctx.stroke();
+
         const [x,y] = q[0];
-        const text  = it.text || '';
-        const w     = ctx.measureText(text).width + 10;
+        const label = it.text || '';
+        const w = ctx.measureText(label).width + 10;
         ctx.fillStyle = 'rgba(0,0,0,0.55)';
         ctx.fillRect(x, y-20, w, 18);
         ctx.fillStyle = '#fff';
-        ctx.fillText(text, x+5, y-6);
+        ctx.fillText(label, x+5, y-6);
+
         drawn++; pathDrawn = true;
       }
+
+      // 2) bbox_scaled 또는 bbox * scale_x/y
+      if (!pathDrawn){
+        let b = it.bbox_scaled;
+        if (!b && Array.isArray(it.bbox) && it.bbox.length === 4){
+          const [x,y,w,h] = it.bbox;
+          b = [x*scale_x, y*scale_y, w*scale_x, h*scale_y];
+        }
+        if (b){
+          const [x,y,w,h] = b;
+          ctx.strokeStyle = '#ffd54a';
+          ctx.fillStyle   = 'rgba(255,213,74,0.18)';
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeRect(x, y, w, h);
+
+          const label = it.text || '';
+          const ww = ctx.measureText(label).width + 10;
+          ctx.fillStyle = 'rgba(0,0,0,0.55)';
+          ctx.fillRect(x, y-20, ww, 18);
+          ctx.fillStyle = '#fff';
+          ctx.fillText(label, x+5, y-6);
+
+          drawn++;
+        }
+      }
     }
-    // bbox 폴백
-    if (!pathDrawn && (it.bbox || it.box || it.rect)){
-      const r = toRect(it.bbox || it.box || it.rect, canvas.width, canvas.height);
-      if (!r) continue;
-      ctx.strokeStyle = '#ffd54a';
-      ctx.fillStyle   = 'rgba(255,213,74,0.18)';
-      ctx.fillRect(r.x, r.y, r.w, r.h);
-      ctx.strokeRect(r.x, r.y, r.w, r.h);
-      const text = it.text || '';
-      const w    = ctx.measureText(text).width + 10;
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(r.x, r.y-20, w, 18);
-      ctx.fillStyle = '#fff';
-      ctx.fillText(text, r.x+5, r.y-6);
-      drawn++;
-    }
+    return drawn;
   }
-  return drawn;
-}
 
-// -------- 메인 --------
-runBtn.addEventListener('click', async (e)=>{
-  e.preventDefault();
-  try{
-    const f = fileEl.files?.[0];
-    if(!f){ setStatus('이미지를 선택하세요.'); return; }
-
-    // 1) 클라이언트에서 이미지 먼저 그림
-    const bmp = await loadBitmapFromFile(f);
-    const scale = fitAndDrawImage(bmp);
-
-    // 2) 서버로 업로드 & OCR
-    setStatus('업로드 중…');
-    const fd = new FormData(); fd.append('file', f);
-    const res = await fetch(`${API_BASE}/api/ocr`, {
-      method:'POST',
-      body: fd,
-      credentials:'include'
-    });
-
-    console.log('OCR status', res.status);
-    if(res.status === 401){ setStatus('로그인 만료. 다시 로그인하세요.'); return; }
-    if(!res.ok){ setStatus('서버 오류'); jsonEl.textContent = await res.text(); return; }
-
-    const data = await res.json();
-    jsonEl.textContent = JSON.stringify(data, null, 2);
-
-    setStatus('시각화 중…');
-    const drawn = drawItems(data.items || [], scale);
-    setStatus(drawn ? `완료 ✅ (${drawn}개)` : '완료(표시할 박스 없음)');
-  }catch(err){
-    console.error(err);
-    setStatus('클라이언트 오류: ' + (err?.message || err));
-  }
-});
-
-// 캔버스 캡처 저장
-saveBtn.addEventListener('click', async ()=>{
-  canvas.toBlob(async (blob)=>{
-    if(!blob){ setStatus('캡처 실패'); return; }
-    const fd = new FormData();
-    fd.append('file', new File([blob], 'capture.png', {type:'image/png'}));
+  // -------- 메인 --------
+  runBtn.addEventListener('click', async (e)=>{
+    e.preventDefault();
     try{
-      const r = await fetch(`${API_BASE}/api/capture`, {
-        method:'POST',
-        body: fd,
-        credentials:'include'
+      const f = fileEl.files?.[0];
+      if(!f){ setStatus('이미지를 선택하세요.'); return; }
+
+      // 1) 로컬 미리보기(사용자 피드백)
+      const bmp = await loadBitmapFromFile(f);
+      fitAndDrawImage(bmp);
+
+      // 2) 서버로 업로드 & OCR
+      setStatus('업로드 중…');
+      const fd = new FormData(); fd.append('file', f);
+      const res = await fetch(`${API_BASE}/api/ocr`, {
+        method:'POST', body: fd, credentials:'include'
       });
-      const j = await r.json().catch(()=>({ok:false}));
-      setStatus(j.ok ? ('캡처 저장됨: ' + j.saved) : '캡처 저장 실패');
-    }catch(e){
-      setStatus('캡처 업로드 오류: ' + e.message);
+
+      if(res.status === 401){ setStatus('로그인 만료. 다시 로그인하세요.'); return; }
+      if(!res.ok){ setStatus('서버 오류'); jsonEl.textContent = await res.text(); return; }
+
+      const data = await res.json();
+      jsonEl.textContent = JSON.stringify(data, null, 2);
+
+      // 3) 서버가 축소/보정 저장한 이미지를 기준으로 정확히 렌더
+      setStatus('시각화 중…');
+      await drawServerImage(`/uploads/${data.filename}`, data);
+      const drawn = drawItems(data);
+
+      setStatus(drawn ? `완료 ✅ (${drawn}개)` : '완료(표시할 박스 없음)');
+    }catch(err){
+      console.error(err);
+      setStatus('클라이언트 오류: ' + (err?.message || err));
     }
   });
-});
-</script>
+
+  // 캔버스 캡처 저장
+  saveBtn.addEventListener('click', async ()=>{
+    canvas.toBlob(async (blob)=>{
+      if(!blob){ setStatus('캡처 실패'); return; }
+      const fd = new FormData();
+      fd.append('file', new File([blob], 'capture.png', {type:'image/png'}));
+      try{
+        const r = await fetch(`${API_BASE}/api/capture`, {
+          method:'POST', body: fd, credentials:'include'
+        });
+        const j = await r.json().catch(()=>({ok:false}));
+        setStatus(j.ok ? ('캡처 저장됨: ' + j.saved) : '캡처 저장 실패');
+      }catch(e){
+        setStatus('캡처 업로드 오류: ' + e.message);
+      }
+    });
+  });
+  </script>
+</body>
+</html>
